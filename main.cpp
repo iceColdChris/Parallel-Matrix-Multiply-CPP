@@ -9,10 +9,9 @@ using namespace std::chrono;
 
 struct ThreadHelper {
     ThreadHelper() = default;
-
     vector<int> A;
     vector<int> B;
-    vector<int> *C = nullptr;
+    shared_ptr<vector<int>> C = nullptr;
     int StartA{};
     int EndA{};
     int s{};
@@ -20,16 +19,16 @@ struct ThreadHelper {
 };
 
 
-void multiply(const shared_ptr<ThreadHelper> &helper) {
-    auto result = helper->C;
+void multiply(const ThreadHelper &helper) {
+    auto result = helper.C;
 
-    for (auto i = helper->StartA; i < helper->EndA; i++) {
-        for (auto j = 0; j < helper->t; j++) {
+    for (auto i = helper.StartA; i < helper.EndA; i++) {
+        for (auto j = 0; j < helper.t; j++) {
             int sum = 0;
-            for (auto k = 0; k < helper->s; k++) {
-                sum = sum + helper->A[i * helper->s + k] * helper->B[k * helper->t + j];
+            for (auto k = 0; k < helper.s; k++) {
+                sum = sum + helper.A[i * helper.s + k] * helper.B[k * helper.t + j];
             }
-            (*result)[i * helper->t + j] = sum;
+            (*result)[i * helper.t + j] = sum;
         }
     }
 }
@@ -50,60 +49,60 @@ vector<int> create_random_matrix(int r, int s) {
 
 vector<int> threaded_matrix_product(const vector<int> &A, const vector<int> &B, int r, int s, int t) {
 
-    vector<int> C(r * t, 0);
+    auto C = make_shared<vector<int>>(vector<int>(r * t, 0));
     /*
      * Creates a thread helper that multiplies
      * over the first fourth of the matrix A
      */
-    auto Th1 = make_shared<ThreadHelper>();
-    Th1->A = A;
-    Th1->B = B;
-    Th1->C = &C;
-    Th1->StartA = 0;
-    Th1->EndA = r / 4;
-    Th1->s = s;
-    Th1->t = t;
+    ThreadHelper Th1;
+    Th1.A = A;
+    Th1.B = B;
+    Th1.C = C;
+    Th1.StartA = 0;
+    Th1.EndA = r / 4;
+    Th1.s = s;
+    Th1.t = t;
 
     /*
      * Creates a thread helper that multiplies
      * over the second fourth of the matrix A
      */
-    auto Th2 = make_shared<ThreadHelper>();
-    Th2->A = A;
-    Th2->B = B;
-    Th2->C = &C;
-    Th2->StartA = r / 4;
-    Th2->EndA = r / 2;
-    Th2->s = s;
-    Th2->t = t;
+    ThreadHelper Th2;
+    Th2.A = A;
+    Th2.B = B;
+    Th2.C = C;
+    Th2.StartA = r / 4;
+    Th2.EndA = r / 2;
+    Th2.s = s;
+    Th2.t = t;
 
     /*
      * Creates a thread helper that multiplies
      * over the third fourth of the matrix A
      */
-    auto Th3 = make_shared<ThreadHelper>();
-    Th3->A = A;
-    Th3->B = B;
-    Th3->C = &C;
-    Th3->StartA = r / 2;
-    Th3->EndA = r - (r / 4);
-    Th3->s = s;
-    Th3->t = t;
+    ThreadHelper Th3;
+    Th3.A = A;
+    Th3.B = B;
+    Th3.C = C;
+    Th3.StartA = r / 2;
+    Th3.EndA = r - (r / 4);
+    Th3.s = s;
+    Th3.t = t;
 
     /*
      * Creates a thread helper that multiplies
      * over the remaining rows of the matrix A
      */
-    auto Th4 = make_shared<ThreadHelper>();
-    Th4->A = A;
-    Th4->B = B;
-    Th4->C = &C;
-    Th4->StartA = r - (r / 4);
-    Th4->EndA = r;
-    Th4->s = s;
-    Th4->t = t;
+    ThreadHelper Th4;
+    Th4.A = A;
+    Th4.B = B;
+    Th4.C = C;
+    Th4.StartA = r - (r / 4);
+    Th4.EndA = r;
+    Th4.s = s;
+    Th4.t = t;
 
-    shared_ptr<ThreadHelper> storage[] = {Th1, Th2, Th3, Th4};
+    ThreadHelper storage[] = {Th1, Th2, Th3, Th4};
     vector<jthread> threads;
 
     for (const auto &i : storage)
@@ -115,7 +114,7 @@ vector<int> threaded_matrix_product(const vector<int> &A, const vector<int> &B, 
         element.join();
     }
 
-    return C;
+    return *C;
 }
 
 /*
